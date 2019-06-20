@@ -1,0 +1,23 @@
+service: ct-alerts-to-slack
+
+frameworkVersion: ">=1.2.0 <2.0.0"
+
+provider:
+  name: aws
+  runtime: python3.7
+  memorySize: 128
+  stage: prod
+  region: eu-west-1 #change the region here as appropriate
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:ListBucket
+        - s3:GetObject
+        - s3:PutObject
+      Resource: "arn:aws:s3:::BUCKET_NAME_HERE/*" #replace BUCKET_NAME_HERE with the S3 bucket you created
+functions:
+  cron:
+    handler: ct-alerts-to-slack.handler
+    name: "ct-alerts-to-slack"
+    events:
+      - schedule: rate(1 minute) #change the schedule here as appropriate
