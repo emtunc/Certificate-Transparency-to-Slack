@@ -32,12 +32,12 @@ def check_if_domain_monitored(domain):
 def store_latest_cert_id_in_s3(domain):
     latest_cert_id = ''
     while True:
-        request = requests.get(
+        response = requests.get(
             "https://api.certspotter.com/v1/issuances?domain=" + domain +
             "&include_subdomains=true&match_wildcards=true&expand=dns_names&expand=issuer&after=" + latest_cert_id,
             headers=HEADERS).json()
-        if request:
-            latest_cert_id = request[-1]['id']
+        if response:
+            latest_cert_id = response[-1]['id']
         else:
             object = S3.Object(S3_BUCKET, domain)
             object.put(Body=json.dumps(latest_cert_id))
@@ -64,17 +64,22 @@ def handler(event, context):
         if check_if_domain_monitored(domain):
             content_object = S3.Object(S3_BUCKET, domain)
             file_content = content_object.get()['Body'].read().decode('utf-8')
-            certificate_transparency_id = json.loads(file_content)
-            request = requests.get(
+            certificate_id = json.loads(file_content)
+            response = requests.get(
                 "https://api.certspotter.com/v1/issuances?domain=" + domain +
                 "&include_subdomains=true&match_wildcards=true&expand=dns_names&expand=issuer&after=" +
-                certificate_transparency_id, headers=HEADERS).json()
-            if request:
-                for issued_cert in request:
+                certificate_id, headers=HEADERS)
+            response_json = response.json()
+            if response.status_code == 429:
+                print("Requests have been rate limited")
+            elif response.status_code == 200 and not len(response_json):
+                print("No new certificates have been issued")
+            elif response.status_code == 200 and len(response_json):
+                for issued_cert in response_json:
                     notify_slack_channel('#FF0000',
                     str(issued_cert['dns_names']),
                     str(issued_cert['issuer']),
                     str(issued_cert['not_before'])
                     )
                 object = S3.Object(S3_BUCKET, domain)
-                object.put(Body=json.dumps(request[-1]['id']))
+                object.put(Body=json.dumps(response_json[-1]['id']))
