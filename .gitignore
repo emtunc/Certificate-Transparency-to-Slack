@@ -1,2 +1,8 @@
-.*/
 __pycache__
+.*/
+.envrc
+.venv
+.vscode
+artifacts/
+bin/
+test/
