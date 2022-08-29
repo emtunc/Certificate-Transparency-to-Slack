@@ -1,0 +1,4 @@
+.git/
+.drone.yml
+.envrc
+test/
